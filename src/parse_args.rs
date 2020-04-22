@@ -1,6 +1,6 @@
 use clap::{App, Arg, SubCommand, ArgMatches};
 
-pub fn clap_parser() -> ArgMatches {
+pub fn clap_parser<'a>() ->  ArgMatches<'a> {
     App::new("Trading")
         .about("A CLI that provides a huge range of trading related features like \
         algorithmic trading, live trading, price checks and account management.\
