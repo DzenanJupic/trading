@@ -1,6 +1,5 @@
-mod parse_args;
-use parse_args::clap_parser;
+mod init;
 
 fn main() {
-    let matches = clap_parser();
+    init::init();
 }
