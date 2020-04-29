@@ -68,15 +68,15 @@ impl std::fmt::Display for ConfigFile {
                 .iter()
                 .for_each(|api| {
                     let key = if let Some(ref key) = api.key { key } else { "-" };
+                    api_str.push('\n');
                     api_str.push_str("\tNAME: ");
                     api_str.push_str(&api.name);
                     api_str.push_str(" | KEY: ");
                     api_str.push_str(key);
-                    api_str.push('\n');
                 });
             api_str
         } else {
-            String::with_capacity(0)
+            String::from(" None")
         };
 
         let algorithms = if let Some(ref algorithm_config) = self.algorithm_config {
@@ -84,20 +84,20 @@ impl std::fmt::Display for ConfigFile {
             algorithm_config.algorithms
                 .iter()
                 .for_each(|algorithm| {
+                    algorithm_str.push('\n');
                     algorithm_str.push_str("\tNAME: ");
                     algorithm_str.push_str(&algorithm.name);
                     algorithm_str.push_str(" | PATH: ");
                     algorithm_str.push_str(&algorithm.file);
-                    algorithm_str.push('\n');
                 });
             algorithm_str
         } else {
-            String::with_capacity(0)
+            String::from(" None")
         };
 
-        let save = format!("\torder: {:?}\n\tprice: {:?}\n", self.save_config.order, self.save_config.price);
+        let save = format!("\t\torder: {:?}\n\t\tprice: {:?}\n", self.save_config.order, self.save_config.price);
 
-        let fmt_str = format!("CONFIGURATION\n\tAPIS:\n{}\tALGORITHMS:\n{}\tSAVE:\n{}", apis, algorithms, save);
+        let fmt_str = format!("CONFIGURATION\n\tAPIS:{}\n\tALGORITHMS:{}\n\tSAVE:\n{}", apis, algorithms, save);
         formatter.write_str(&fmt_str)
     }
 }
@@ -159,7 +159,8 @@ pub fn write_configuration(config: &ConfigFile) -> Result<(), io::Error> {
     config_to_file(&config, CONFIG_FILE)
 }
 
-pub fn load_configuration<P: AsRef<Path>>(from: P) -> Result<(), io::Error> {
-    let from = file_to_config(from)?;
-    config_to_file(&from, CONFIG_FILE)
+pub fn load_configuration<P: AsRef<Path>>(from: P) -> Result<ConfigFile, io::Error> {
+    let loaded = file_to_config(from)?;
+    // config_to_file(&loaded, CONFIG_FILE)?;
+    Ok(loaded)
 }

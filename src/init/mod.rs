@@ -30,6 +30,7 @@ pub enum Action {
     Panic(String),
 }
 
+#[allow(unused)]
 impl Action {
     pub fn is_none(&self) -> bool {
         if let Action::None = self {
