@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand};
+use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand, Values};
 
 use parse_settings::parse_settings;
 use parse_start::parse_start;
@@ -22,8 +22,9 @@ const BROKER_REQUIREMENTS: [(&str, &str); 4] = [
 // get_algorithms!();
 // maybe it's better to use a function like macro that creates the ALGORITHM array from nothing
 const ALGORITHMS: [&str; 1] = ["./algorithms"];
-// const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
-// const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
+const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
+// TODO: create macro to populate with data from the internet
+const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
 const ON_OFF: [&str; 2] = ["on", "off"];
 
 
@@ -57,7 +58,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 .short("s")
                 .long("show")
             )
-            .arg(Arg::with_name("load")
+            .arg(Arg::with_name("load") // TODO: allow partial load (also of broken files | `repair` maybe own argument?)
                 .help("loads settings from a file")
                 .short("l")
                 .long("load")
@@ -101,7 +102,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .possible_values(&ALGORITHMS)
                 )
             )
-            .subcommand(SubCommand::with_name("api")
+            .subcommand(SubCommand::with_name("api") // TODO: load to load from different folders
                 .about("A CLI for manually changing API settings")
                 .arg(Arg::with_name("list")
                     .help("shows the available apis")
@@ -161,18 +162,62 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 )
             )
         )
+        .subcommand(SubCommand::with_name("start")
+            .about("Starts the trading algorithm")
+            .arg(Arg::with_name("trading type")
+                .help("determine weather you want to trade live (with real money!), paper (without money) or back (back tests you algorithm)")
+                .takes_value(true)
+                .possible_values(&["live", "paper", "back"])
+            )
+            .arg(Arg::with_name("ISIN")
+                .help("the ISIN of the product you want to trade")
+                .short("i")
+                .long("isin")
+                .takes_value(true)
+                .required_unless_one(&["WKN", "SYMBOL"])
+                .validator(|value| {
+                    if value.len() == 12 { Ok(()) } else { Err("ISIN needs to be 12 chars long!".to_string()) }
+                })
+            )
+            .arg(Arg::with_name("SYMBOL")
+                .help("the symbol of the product you want to trade")
+                .short("s")
+                .long("symbol")
+                .takes_value(true)
+                .required_unless("ISIN")
+                .conflicts_with("ISIN")
+                .possible_values(&SYMBOLS)
+            )
+            .arg(Arg::with_name("output")
+                .help("Specifies the amount of date that should be displayed [default: trades]\
+                \nThis argument let's you decide what amount of information should be displayed \
+                while trading. Outputting  data will lead to a performance overhead. Still it's \
+                recommended to output the trades, since this gives you the ability to check if \
+                the algorithm goes crazy. full and none can't be specified together! \
+                If full or none is set it overrides all other values. \
+                Notice that you always have the option to look at the data afterwards if you save it.")
+                .short("o")
+                .long("output")
+                .takes_value(true)
+                .multiple(true)
+                .possible_values(&OUTPUT)
+                .default_value("text")
+                .default_value("trade")
+            )
+            .arg(Arg::with_name("save")
+                .help("Weather or not data like trades should be saved\
+                \nThis argument let's you decide how much data should be saved. \
+                Please notice that this could have a little performance overhead. Still it's \
+                absolutely recommended to save the data. Data saves will be asyncness and can \
+                save your butt if one of the algorithms goes crazy. \
+                Usually it also shouldn't be necessary to save the charts, since you can pull \
+                them from the internet later.")
+                .long("save")
+                .takes_value(true)
+                .multiple(true)
+                .possible_values(&OUTPUT)
+                .default_value("trade")
+            )
+        )
         .get_matches()
 }
-
-/*fn validate_start_output(value: &String) -> Result<(), String> {
-    let values = value.split_whitespace();
-    let mut text = false;
-    let mut chart = false;
-    let mut full = false;
-    let mut none = false;
-
-    for value in values {
-        if value == "text" && !chart { text = true; } else if value == "text" && chart { return Err("text output cannot live side by side with chart".to_string()); } else if value == "chart" && !text { chart = true; } else if value == "chart" && text { return Err("chart output cannot live side by side with text".to_string()); } else if value == "full" && !none { full = true; } else if value == "full" && none { return Err("full output cannot live side by side with none".to_string()); } else if value == "none" && !full { none = true; } else if value == "none" && full { return Err("none output cannot live side by side with full".to_string()); } else if value != "text" && value != "chart" && full { return Err(format!("{} output cannot live side by side with full", value)); } else if value != "text" && value != "chart" && none { return Err(format!("{} output cannot live side by side with none", value)); }
-    }
-    Ok(())
-}*/

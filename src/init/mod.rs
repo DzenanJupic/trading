@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use crate::derivative::Derivative;
+
 mod parse_args;
 mod settings;
 
@@ -18,11 +20,10 @@ pub fn init() -> Action {
 
 #[allow(unused)] // todo
 pub struct Start {
-    isins: Vec<String>,
-    workers: u32,
+    isins: Vec<Derivative>,
     interval: Duration,
     api: settings::ApiConfig,
-    algorithms: Vec<settings::AlgorithmConfig>,
+    algorithms: Vec<fn(Derivative, Duration) -> Result<(), ()>>,
 }
 
 #[allow(unused)] // todo
