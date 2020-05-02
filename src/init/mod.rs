@@ -9,12 +9,14 @@ pub fn init() -> Action {
     if parse_args.is_exit() || parse_args.is_none() {
         std::process::exit(0);
     } else if let Action::Panic(msg) = parse_args {
-        panic!(msg);
+        eprintln!("{}", msg);
+        std::process::exit(1);
     }
 
     parse_args
 }
 
+#[allow(unused)] // todo
 pub struct Start {
     isins: Vec<String>,
     workers: u32,
@@ -23,6 +25,7 @@ pub struct Start {
     algorithms: Vec<settings::AlgorithmConfig>,
 }
 
+#[allow(unused)] // todo
 pub enum Action {
     Start(Start),
     Exit,

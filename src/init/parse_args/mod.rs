@@ -7,7 +7,6 @@ use parse_start::parse_start;
 
 use crate::init::Action;
 use crate::init::settings;
-use crate::init::settings::{ApiConfig, ConfigFile};
 
 mod parse_settings;
 mod parse_start;
@@ -22,9 +21,9 @@ const BROKER_REQUIREMENTS: [(&str, &str); 4] = [
 // #[get_algorithms] // TODO: create attribute macro that populates the ALGORITHMS array
 // get_algorithms!();
 // maybe it's better to use a function like macro that creates the ALGORITHM array from nothing
-const ALGORITHMS: [&str; 0] = [];
-const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
-const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
+const ALGORITHMS: [&str; 1] = ["./algorithms"];
+// const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
+// const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
 const ON_OFF: [&str; 2] = ["on", "off"];
 
 
@@ -85,6 +84,80 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .takes_value(true)
                     .possible_values(&ON_OFF)
                     .default_value("off")
+                )
+            )
+            .subcommand(SubCommand::with_name("algorithm")
+                .about("A CLI for manually changing the algorithm")
+                .arg(Arg::with_name("list")
+                    .help("shows the available algorithms")
+                    .short("l")
+                    .long("list")
+                )
+                .arg(Arg::with_name("change")
+                    .help("changes the current used algorithm")
+                    .short("c")
+                    .long("change")
+                    .takes_value(true)
+                    .possible_values(&ALGORITHMS)
+                )
+            )
+            .subcommand(SubCommand::with_name("api")
+                .about("A CLI for manually changing API settings")
+                .arg(Arg::with_name("list")
+                    .help("shows the available apis")
+                    .short("l")
+                    .long("list")
+                )
+                .arg(Arg::with_name("change")
+                    .help("changes the used api based on the id")
+                    .short("c")
+                    .long("change")
+                    .takes_value(true)
+                )
+                .subcommand(SubCommand::with_name("add")
+                    .about("adds a new api access to the apis")
+                    .arg(Arg::with_name("id")
+                        .help("sets the api id")
+                        .short("i")
+                        .long("id")
+                        .takes_value(true)
+                        .env("API_ID")
+                    )
+                    .arg(Arg::with_name("broker")
+                        .takes_value(true)
+                        .env("API_BROKER")
+                        .required(true)
+                        .possible_values(&BROKERS)
+                        .requires_ifs(&BROKER_REQUIREMENTS)
+                    )
+                    .arg(Arg::with_name("key")
+                        .help("sets the api key")
+                        .short("k")
+                        .long("key")
+                        .takes_value(true)
+                        .env("API_KEY")
+                    )
+                    .arg(Arg::with_name("secret")
+                        .help("sets the api secret")
+                        .short("s")
+                        .long("secret")
+                        .takes_value(true)
+                        .env("API_SECRET")
+                    )
+                    .arg(Arg::with_name("username")
+                        .help("sets the api username")
+                        .short("u")
+                        .long("username")
+                        .takes_value(true)
+                        .env("API_USERNAME")
+                    )
+                    .arg(Arg::with_name("password")
+                        .help("sets the api password")
+                        .short("p")
+                        .long("password")
+                        .takes_value(true)
+                        .env("API_PASSWORD")
+                    )
                 )
             )
         )

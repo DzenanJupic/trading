@@ -1,9 +1,7 @@
 use clap::ArgMatches;
 
 use crate::init::{Action, settings};
-use crate::init::settings::{ApiConfig, ConfigFile};
-
-use super::BROKERS;
+use crate::init::settings::{ApiConfig, BrokerApi, ConfigFile};
 
 pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     // lets the user load settings from a different file
@@ -15,10 +13,10 @@ pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> A
     }
 
     let action = match args.subcommand() {
-        ("save", Some(save)) => parse_settings_save(&save, &mut *current_settings),
-        ("algorithm", Some(algorithm)) => parse_settings_algorithms(&algorithm, &mut *current_settings),
-        ("api", Some(api)) => parse_settings_api(&api, &mut *current_settings),
-        _ => Action::Exit
+        ("save", Some(save)) => parse_save(&save, current_settings),
+        ("algorithm", Some(algorithm)) => parse_algorithm(&algorithm, current_settings),
+        ("api", Some(api)) => parse_api(&api, current_settings),
+        _ => Action::None
     };
 
     // override the current settings
@@ -33,7 +31,7 @@ pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> A
     action
 }
 
-fn parse_settings_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     if let Some(order) = args.value_of("order") {
         current_settings.save_config.order = on_off_to_bool(order);
     }
@@ -45,8 +43,8 @@ fn parse_settings_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> 
     Action::None
 }
 
-fn parse_settings_algorithms(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
-    let mut action = Action::Exit;
+fn parse_algorithm(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+    let mut action = Action::None;
 
     // lets the user change the currently used default algorithm
     if let Some(algorithm_name) = args.value_of("change") {
@@ -58,7 +56,7 @@ fn parse_settings_algorithms(args: &ArgMatches, current_settings: &mut ConfigFil
                 let mut updated = false;
                 for algorithm in algorithm_config.algorithms.iter() {
                     if algorithm.name == algorithm_name {
-                        algorithm_config.current_algorithm = Some((*algorithm).clone());
+                        algorithm_config.current_algorithm = algorithm.clone();
                         updated = true;
                     }
                 }
@@ -67,74 +65,103 @@ fn parse_settings_algorithms(args: &ArgMatches, current_settings: &mut ConfigFil
                     action = Action::Panic(format!("Could not find the algorithm {}!", algorithm_name));
                 }
             }
-            _ => action = Action::Panic("No algorithms defined yet!".to_string())
+            None => action = Action::Panic("No algorithms defined yet!".to_string())
         }
     }
 
-    if args.is_present("show") {
-        println!("{:#?}", current_settings.algorithm_config);
+    if args.is_present("list") {
+        let algorithm_config = match current_settings.algorithm_config {
+            Some(ref config) => config.to_string(),
+            None => String::from("None")
+        };
+        println!("\nALGORITHMS: {}", algorithm_config);
     }
 
     action
 }
 
-fn parse_settings_api(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
-    let mut action = Action::Exit;
-
-    // lets the user add a new api
-    if let Some(api_name) = args.value_of("add") {
-        // check weather or not the broker is supported
-        if !BROKERS.contains(&api_name) {
-            return Action::Panic(format!("The broker {} is currently not supported!", api_name));
-        }
-
-        // get all the access values of the api
-        // if a access value is needed the field should be required, so we don't have to check for that
-        let key = if let Some(key) = args.value_of("key") { Some(key.to_string()) } else { None };
-        let secret = if let Some(secret) = args.value_of("secret") { Some(secret.to_string()) } else { None };
-        let username = if let Some(username) = args.value_of("username") { Some(username.to_string()) } else { None };
-        let password = if let Some(password) = args.value_of("password") { Some(password.to_string()) } else { None };
-
-        let new_api = settings::BrokerApi {
-            name: api_name.to_string(),
-            key,
-            secret,
-            username,
-            password,
-        };
-
-        // adds the new broker to the settings
-        if let Some(ref mut api_config) = current_settings.api_config {
-            api_config.apis.push(new_api);
-        } else {
-            let api_config = ApiConfig {
-                current_api: None,
-                apis: vec![new_api],
-            };
-            current_settings.api_config = Some(api_config);
-        }
-    }
+fn parse_api(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+    let mut action = match args.subcommand() {
+        ("add", Some(add)) => parse_api_add(add, current_settings),
+        _ => Action::None
+    };
 
     // lets the user change the currently used default api
-    // TODO: currently it's not possible decide witch account to use when multiple of one broker are available
-    if let Some(api_name) = args.value_of("change") {
+    if let Some(api_id) = args.value_of("change") {
         if let Some(ref mut apis) = current_settings.api_config {
             let mut updated = false;
             for api in apis.apis.iter() {
-                if api.name == api_name {
-                    apis.current_api = Some(api.clone());
+                if api.id == api_id {
+                    apis.current_api = api.id.clone();
                     updated = true;
                 }
             }
             if !updated {
-                action = Action::Panic(format!("Could not find the api {}", api_name));
+                action = Action::Panic(format!("Could not find the api {}", api_id));
             }
         } else {
-            action = Action::Panic("No apis defined yet!".to_string())
+            action = Action::Panic("No apis defined yet".to_string())
         }
     }
 
+    if args.is_present("list") {
+        let api_config = match current_settings.algorithm_config {
+            Some(ref config) => config.to_string(),
+            None => String::from("None")
+        };
+        println!("\nAPIS: {}", api_config)
+    }
+
     action
+}
+
+fn parse_api_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+    let id = match args.value_of("id") {
+        Some(id) => {
+            if BrokerApi::id_exists(&current_settings, &id) {
+                return Action::Panic("This id is already in use".to_string());
+            }
+
+            Some(id.to_string())
+        }
+        None => None
+    };
+    let broker = args
+        .value_of("broker")
+        .unwrap()
+        .to_string();
+    let key = args
+        .value_of("key")
+        .map(|key| key.to_string());
+    let secret = args
+        .value_of("secret")
+        .map(|secret| secret.to_string());
+    let username = args
+        .value_of("username")
+        .map(|username| username.to_string());
+    let password = args
+        .value_of("password")
+        .map(|password| password.to_string());
+
+    let broker_api = BrokerApi::builder(broker)
+        .id(id)
+        .key(key)
+        .secret(secret)
+        .username(username)
+        .password(password)
+        .build(current_settings);
+
+    match &mut current_settings.api_config {
+        Some(api_config) => api_config.apis.push(broker_api),
+        None => {
+            current_settings.api_config = Some(ApiConfig {
+                current_api: broker_api.id.clone(),
+                apis: vec![broker_api],
+            });
+        }
+    }
+
+    Action::None
 }
 
 fn on_off_to_bool(value: &str) -> bool {
