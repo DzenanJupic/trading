@@ -14,7 +14,7 @@ pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> A
 
     let action = match args.subcommand() {
         ("save", Some(save)) => parse_save(&save, current_settings),
-        ("algorithms", Some(algorithms)) => parse_algorithms(&algorithms, current_settings),
+        ("parse-algorithms", Some(algorithms)) => parse_algorithms(&algorithms, current_settings),
         ("apis", Some(apis)) => parse_apis(&apis, current_settings),
         _ => Action::None
     };
@@ -48,8 +48,8 @@ fn parse_algorithms(args: &ArgMatches, current_settings: &mut ConfigFile) -> Act
 
     // lets the user change the currently used default algorithm
     if let Some(algorithm_name) = args.value_of("change") {
-        // check if there are algorithms defines yet
-        // these algorithms must live in the settings::ALGORITHM_DIR
+        // check if there are parse-algorithms defines yet
+        // these parse-algorithms must live in the settings::ALGORITHM_DIR
         match &mut current_settings.algorithm_config {
             Some(algorithm_config) => {
                 // check if the algorithm is defined
@@ -65,7 +65,7 @@ fn parse_algorithms(args: &ArgMatches, current_settings: &mut ConfigFile) -> Act
                     action = Action::Panic(format!("Could not find the algorithm {}!", algorithm_name));
                 }
             }
-            None => action = Action::Panic("No algorithms defined yet!".to_string())
+            None => action = Action::Panic("No parse-algorithms defined yet!".to_string())
         }
     }
 

@@ -1,4 +1,4 @@
-/// A template file for algorithms
+/// A template file for parse-algorithms
 ///
 /// If you want to write your own algorithm, there are a view things
 /// worth knowing.
@@ -67,7 +67,7 @@
 /// rules exist to protect users from exploitation when using code
 /// of other people. Please note, that the whole trading application
 /// is useless when any of these rules get broken in any of the
-/// algorithms.
+/// parse-algorithms.
 ///
 /// The rules:
 ///     - no manual imports expect from:

@@ -24,7 +24,7 @@ const BROKER_REQUIREMENTS: [(&str, &str); 4] = [
 // #[get_algorithms] // TODO: create attribute macro that populates the ALGORITHMS array
 // get_algorithms!();
 // maybe it's better to use a function like macro that creates the ALGORITHM array from nothing
-const ALGORITHMS: [&str; 1] = ["./algorithms"];
+const ALGORITHMS: [&str; 1] = ["./parse-algorithms"];
 const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
 // TODO: create macro to populate with data from the internet
 const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
@@ -49,7 +49,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
         .version(crate_version!())
         .author(crate_authors!())
         .about("A CLI for algorithmic trading\
-        \nYou can either use existing algorithms or develop some your own! \
+        \nYou can either use existing parse-algorithms or develop some your own! \
         \nIf your brokers api currently is not supported, please open a issue on GitHub with \
         a link to your brokers API documentation. It would awesome if you could create the rust api \
         for you brokers api your self! Each contribution makes this CLI a great amount better.")
@@ -90,10 +90,10 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .default_value("off")
                 )
             )
-            .subcommand(SubCommand::with_name("algorithms")
+            .subcommand(SubCommand::with_name("parse-algorithms")
                 .about("A CLI for manually changing the algorithm")
                 .arg(Arg::with_name("list")
-                    .help("shows the available algorithms")
+                    .help("shows the available parse-algorithms")
                     .short("l")
                     .long("list")
                 )
@@ -220,7 +220,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 \nThis argument let's you decide how much data should be saved. \
                 Please notice that this could have a little performance overhead. Still it's \
                 absolutely recommended to save the data. Data saves will be asyncness and can \
-                save your butt if one of the algorithms goes crazy. \
+                save your butt if one of the parse-algorithms goes crazy. \
                 Usually it also shouldn't be necessary to save the charts, since you can pull \
                 them from the internet later.")
                 .long("save")
