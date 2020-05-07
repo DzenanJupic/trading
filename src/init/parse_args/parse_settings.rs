@@ -14,8 +14,8 @@ pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> A
 
     let action = match args.subcommand() {
         ("save", Some(save)) => parse_save(&save, current_settings),
-        ("algorithm", Some(algorithm)) => parse_algorithm(&algorithm, current_settings),
-        ("api", Some(api)) => parse_api(&api, current_settings),
+        ("algorithms", Some(algorithms)) => parse_algorithms(&algorithms, current_settings),
+        ("apis", Some(apis)) => parse_apis(&apis, current_settings),
         _ => Action::None
     };
 
@@ -43,7 +43,7 @@ fn parse_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     Action::None
 }
 
-fn parse_algorithm(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_algorithms(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     let mut action = Action::None;
 
     // lets the user change the currently used default algorithm
@@ -80,9 +80,10 @@ fn parse_algorithm(args: &ArgMatches, current_settings: &mut ConfigFile) -> Acti
     action
 }
 
-fn parse_api(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_apis(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     let mut action = match args.subcommand() {
-        ("add", Some(add)) => parse_api_add(add, current_settings),
+        ("add", Some(add)) => parse_apis_add(add, current_settings),
+        ("remove", Some(remove)) => parse_apis_remove(remove, current_settings),
         _ => Action::None
     };
 
@@ -105,17 +106,17 @@ fn parse_api(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     }
 
     if args.is_present("list") {
-        let api_config = match current_settings.algorithm_config {
+        let api_config = match current_settings.api_config {
             Some(ref config) => config.to_string(),
             None => String::from("None")
         };
-        println!("\nAPIS: {}", api_config)
+        println!("\n{}", api_config)
     }
 
     action
 }
 
-fn parse_api_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_apis_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     let id = match args.value_of("id") {
         Some(id) => {
             if BrokerApi::id_exists(&current_settings, &id) {
@@ -159,6 +160,42 @@ fn parse_api_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action
                 apis: vec![broker_api],
             });
         }
+    }
+
+    Action::None
+}
+
+fn parse_apis_remove(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+    let id = args.value_of("id").unwrap();
+    let mut none = false;
+
+    if let Some(ref mut api_config) = current_settings.api_config {
+        let mut index = None;
+
+        for (i, api) in api_config.apis.iter().enumerate() {
+            if api.id == id {
+                index = Some(i);
+            }
+        }
+
+        if let Some(index) = index {
+            if api_config.apis.len() == 1 {
+                none = true;
+            } else {
+                api_config.apis.remove(index);
+                api_config.current_api = api_config.apis
+                                                   .iter()
+                                                   .last()
+                                                   .unwrap()
+                                                   .id.clone();
+            }
+        } else {
+            return Action::Panic(format!("could not find {}", id))
+        }
+    } else { return Action::Panic("no saved apis to remove".to_string()) }
+
+    if none {
+        current_settings.api_config = None;
     }
 
     Action::None

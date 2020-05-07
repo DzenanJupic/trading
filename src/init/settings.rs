@@ -239,12 +239,15 @@ impl Default for SaveConfig {
 
 impl fmt::Display for SaveConfig {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        let order = if self.order { "on" } else { "off" };
+        let price = if self.price { "on" } else { "off" };
+
         write!(
             formatter,
             "SAVE:\n\
             \torder: {}\n\
             \tprice: {}",
-            self.order, self.price
+            order, price
         )
     }
 }

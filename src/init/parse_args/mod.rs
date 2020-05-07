@@ -1,6 +1,9 @@
+#![allow(unused)]
+
+// todo
 use std::path::Path;
 
-use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand, Values};
+use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand};
 
 use parse_settings::parse_settings;
 use parse_start::parse_start;
@@ -87,7 +90,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .default_value("off")
                 )
             )
-            .subcommand(SubCommand::with_name("algorithm")
+            .subcommand(SubCommand::with_name("algorithms")
                 .about("A CLI for manually changing the algorithm")
                 .arg(Arg::with_name("list")
                     .help("shows the available algorithms")
@@ -102,7 +105,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .possible_values(&ALGORITHMS)
                 )
             )
-            .subcommand(SubCommand::with_name("api") // TODO: load to load from different folders
+            .subcommand(SubCommand::with_name("apis") // TODO: load to load from different folders
                 .about("A CLI for manually changing API settings")
                 .arg(Arg::with_name("list")
                     .help("shows the available apis")
@@ -158,6 +161,14 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                         .long("password")
                         .takes_value(true)
                         .env("API_PASSWORD")
+                    )
+                )
+                .subcommand(SubCommand::with_name("remove")
+                    .about("removes a existing api")
+                    .arg(Arg::with_name("id")
+                        .help("ID of the api to remove")
+                        .takes_value(true)
+                        .required(true)
                     )
                 )
             )
