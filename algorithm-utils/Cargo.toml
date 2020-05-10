@@ -1,13 +1,12 @@
 [package]
-name = "parse-algorithms"
+name = "algorithm-utils"
 version = "0.1.0"
 authors = ["Dzenan Jupic <info@dzenanjupic.de>"]
 edition = "2018"
 
-[lib]
-proc-macro = true
-
 [dependencies]
-syn = "1.0.19"
-quote = "1.0.4"
-proc-macro2 = "1.0.12"
+libloading = "0.6.2"
+chrono = "0.4.11"
+
+[build-dependencies]
+rustc_version = "0.2.3"
