@@ -1,20 +1,42 @@
+use std::fmt;
+use std::fmt::Formatter;
+
 use chrono::Duration;
 use libloading::Library;
 
-use crate::{AlgorithmInterface, Error, Instruction, Position, Derivative};
+use crate::{AlgorithmInterface, Derivative, Error, Instruction, Position};
 
+/// a wrapper around an extern AlgorithmInterface
+///
+/// This wrapper provides convenient access to a Box<dyn AlgorithmInterface.
+/// This dynamic AlgorithmInterface usually is a dynamically loaded library that contains
+/// an algorithm.
+/// The _lib field is for the borrow checker to keep the library alive as long as an instace
+/// of it is used.
 pub struct Algorithm {
+    name: &'static str,
+    path: String,
     algorithm: Box<dyn AlgorithmInterface>,
     _lib: Library,
 }
 
 impl Algorithm {
-    pub fn new(algorithm: Box<dyn AlgorithmInterface>, _lib: Library) -> Self {
+    pub fn new(
+        name: &'static str,
+        path: String,
+        algorithm: Box<dyn AlgorithmInterface>,
+        _lib: Library,
+    ) -> Self {
         Self {
+            name,
+            path,
             algorithm,
             _lib,
         }
     }
+
+    pub fn name(&self) -> &'static str {&self.name}
+    pub fn path(&self) -> &String {&self.path}
 }
 
 impl AlgorithmInterface for Algorithm {
@@ -51,5 +73,11 @@ impl AlgorithmInterface for Algorithm {
     #[inline]
     fn shutdown(&mut self, positions: &[Position], prices: &[f64]) -> Result<&[Instruction], Error> {
         self.algorithm.shutdown(positions, prices)
+    }
+}
+
+impl fmt::Display for Algorithm {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{} ({})", self.name, self.path)
     }
 }

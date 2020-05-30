@@ -38,6 +38,8 @@
 //! open positions left.
 
 use algorithm_utils as utils;
+use algorithm_utils::{Derivative, Instruction, Position};
+use chrono::Duration;
 use utils::{AlgorithmInterface, Error, export_algorithm};
 
 export_algorithm!("Template Algorithm", Context::default());
@@ -49,33 +51,22 @@ pub struct Context {
 }
 
 impl AlgorithmInterface for Context {
-    fn about(&self) -> &str {
-        "This is a little template Algorithm\n\
-        You can use it to build your own ones"
+    fn about(&self) -> &'static str {
+        "Template Algorithm about"
     }
 
-    fn min_prices(&self) -> u64 { 200 }
-
-    fn max_prices(&self) -> u64 { 1200 }
-
-    fn init(&mut self) -> Result<(), Error> {
+    fn init(&mut self, _derivative: &Derivative, _time_steps: Duration) -> Result<(), Error> {
+        println!("init");
         Ok(())
     }
 
-    fn load_data(&mut self, prices: &[f64]) -> Result<(), Error> {
-        if self.first_price.is_none() {
-            self.first_price = Some(prices[0]);
-        }
-        Ok(())
+    fn algorithm(&mut self, _positions: &[Position], _prices: &[f64]) -> Result<&[Instruction<'_>], Error> {
+        println!("algorithm");
+        Ok(&[])
     }
 
-    fn algorithm(&mut self, prices: &[f64]) -> Result<(), Error> {
-        self.last_price = Some(*prices.iter().last().unwrap());
-        Ok(())
-    }
-
-    fn shutdown(&mut self) -> Result<(), Error> {
-        println!("first: {:?}, last: {:?}", self.first_price, self.last_price);
-        Ok(())
+    fn shutdown(&mut self, _positions: &[Position], _prices: &[f64]) -> Result<&[Instruction<'_>], Error> {
+        println!("shutdown");
+        Ok(&[])
     }
 }

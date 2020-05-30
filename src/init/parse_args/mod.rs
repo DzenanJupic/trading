@@ -1,8 +1,8 @@
 #![allow(unused)]
 
-// todo
 use std::path::Path;
 
+use algorithm_utils::{AlgorithmInterface, Error, load::Algorithms};
 use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand};
 
 use parse_settings::parse_settings;
@@ -10,10 +10,12 @@ use parse_start::parse_start;
 
 use crate::init::Action;
 use crate::init::settings;
+use crate::init::settings::{ConfigFile, Settings};
 
 mod parse_settings;
 mod parse_start;
 
+pub const ALGORITHM_DIR: &str = "./algorithms/";
 const BROKERS: [&str; 1] = ["comdirect"];
 const BROKER_REQUIREMENTS: [(&str, &str); 4] = [
     ("comdirect", "key"),
@@ -21,12 +23,7 @@ const BROKER_REQUIREMENTS: [(&str, &str); 4] = [
     ("comdirect", "username"),
     ("comdirect", "password"),
 ];
-// #[get_algorithms] // TODO: create attribute macro that populates the ALGORITHMS array
-// get_algorithms!();
-// maybe it's better to use a function like macro that creates the ALGORITHM array from nothing
-const ALGORITHMS: [&str; 1] = ["./parse-algorithms"];
-const SYMBOLS: [&str; 5] = ["USD_EUR", "GOLD", "DAX", "SP500", "NASDAQ"];
-// TODO: create macro to populate with data from the internet
+const TRADING_TYPES: [&str; 3] = ["live", "paper", "back"];
 const OUTPUT: [&str; 6] = ["text", "chart", "full", "trade", "price", "none"];
 const ON_OFF: [&str; 2] = ["on", "off"];
 
@@ -34,14 +31,28 @@ const ON_OFF: [&str; 2] = ["on", "off"];
 pub fn parse_args() -> Action {
     let matches = clap_parser();
 
-    let mut current_settings = settings::read_configuration()
-        .expect("Could not read configuration!");
+    let mut current_settings: Settings = ConfigFile::from_config_file()
+        .expect("Could not read configuration!")
+        .into();
+
+    let algorithms = match load_algorithms() {
+        Ok(algorithms) => algorithms,
+        Err(err) => return Action::Panic(err.msg().to_string()),
+    };
+
+    current_settings.set_algorithms(algorithms);
 
     match matches.subcommand() {
-        ("settings", Some(settings)) => parse_settings(settings, &mut current_settings),
-        ("start", Some(start)) => parse_start(start, &mut current_settings),
+        ("settings", Some(settings)) => parse_settings(settings, current_settings),
+        ("start", Some(start)) => parse_start(start, current_settings),
         _ => Action::Exit
     }
+}
+
+pub fn load_algorithms() -> Result<Algorithms, Error> {
+    let mut algorithms = Algorithms::empty();
+    algorithms.load_all(ALGORITHM_DIR)?;
+    Ok(algorithms)
 }
 
 fn clap_parser<'a>() -> ArgMatches<'a> {
@@ -90,7 +101,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .default_value("off")
                 )
             )
-            .subcommand(SubCommand::with_name("parse-algorithms")
+            .subcommand(SubCommand::with_name("algorithms")
                 .about("A CLI for manually changing the algorithm")
                 .arg(Arg::with_name("list")
                     .help("shows the available parse-algorithms")
@@ -102,7 +113,12 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                     .short("c")
                     .long("change")
                     .takes_value(true)
-                    .possible_values(&ALGORITHMS)
+                )
+                .arg(Arg::with_name("about")
+                    .help("Gives access to the algorithm descriptions")
+                    .short("a")
+                    .long("about")
+                    .takes_value(true)
                 )
             )
             .subcommand(SubCommand::with_name("apis") // TODO: load to load from different folders
@@ -178,7 +194,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
             .arg(Arg::with_name("trading type")
                 .help("determine weather you want to trade live (with real money!), paper (without money) or back (back tests you algorithm)")
                 .takes_value(true)
-                .possible_values(&["live", "paper", "back"])
+                .possible_values(&TRADING_TYPES)
             )
             .arg(Arg::with_name("ISIN")
                 .help("the ISIN of the product you want to trade")
@@ -197,7 +213,6 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required_unless("ISIN")
                 .conflicts_with("ISIN")
-                .possible_values(&SYMBOLS)
             )
             .arg(Arg::with_name("output")
                 .help("Specifies the amount of date that should be displayed [default: trades]\

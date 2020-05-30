@@ -1,54 +1,46 @@
-use crate::{Derivative, Percent, Points, PositionType, Price, Instruction};
+use crate::{Derivative, Percent, Points, PositionType, Price, Instruction, StockExchange};
 
 use chrono::{DateTime, Local, Duration};
 
 #[derive(Clone, Debug)]
 pub struct Order {
-    pub order_time: DateTime<Local>,
-    pub derivative: Derivative,
-    pub pieces: u64,
-    pub order_type: OrderType,
-    pub position_type: PositionType,
-    pub order_moment: OrderMoment,
-    pub order_validity: OrderValidity
+    stock_exchange: StockExchange,
+    order_time: DateTime<Local>,
+    derivative: Derivative,
+    pieces: u64,
+    order_type: OrderType,
+    position_type: PositionType,
+    order_moment: OrderMoment,
+    order_validity: OrderValidity,
+    one_cancels_the_other: Option<Box<Order>>
 }
 
 impl Order {
-    pub fn from_instruction(_instruction: Instruction) -> Self {
-        unimplemented!()
-    }
-
+    #[inline]
     pub fn is_now_or_passed(&self) -> bool {
         self.order_moment.is_now_or_passed()
     }
 
+    #[inline]
     pub fn is_valid(&self) -> bool {
         self.order_validity.is_valid(&self.order_time)
     }
-}
 
-#[derive(Clone, Debug)]
-pub struct OneCancelsTheOther {
-    pub orders: Vec<Order>,
-    pub canceled: bool,
-}
-
-impl OneCancelsTheOther {
-    pub fn new(orders: Vec<Order>) -> Self {
-        Self {
-            orders,
-            canceled: false,
-        }
+    /// cancels all orders tied to it by the one_cancels_the_other_field
+    pub fn cancel_others() -> CancelResult {
+        unimplemented!()
     }
 }
 
-impl Default for OneCancelsTheOther {
-    fn default() -> Self {
-        Self {
-            orders: Vec::new(),
-            canceled: false,
-        }
+impl From<Instruction<'_>> for Order {
+    fn from(_instruction: Instruction) -> Self {
+        unimplemented!()
     }
+}
+
+pub enum CancelResult {
+    Canceled,
+    NotCanceled,
 }
 
 #[derive(Clone, Debug)]

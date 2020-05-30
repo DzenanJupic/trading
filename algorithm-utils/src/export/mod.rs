@@ -7,17 +7,18 @@ pub mod algorithm_registration;
 #[macro_export]
 macro_rules! export_algorithm {
     ($name:literal, $algorithm:expr) => {
-        pub extern fn default_algorithm() -> ::std::boxed::Box<dyn AlgorithmInterface> {
+        pub extern fn initial_algorithm_state() -> ::std::boxed::Box<dyn AlgorithmInterface> {
             ::std::boxed::Box::new($algorithm)
         }
 
         #[doc(hidden)]
         #[no_mangle]
-        pub const ALGORITHM_DECLARATION: $crate::AlgorithmDeclaration = $crate::AlgorithmDeclaration {
+        // needs to be static
+        pub static ALGORITHM_REGISTRATION: $crate::AlgorithmRegistration = $crate::AlgorithmRegistration {
             rustc_version: $crate::RUSTC_VERSION,
             utils_version: $crate::UTILS_VERSION,
             name: $name,
-            default: default_algorithm,
+            initial_algorithm_state_fn: initial_algorithm_state,
         };
     };
 }

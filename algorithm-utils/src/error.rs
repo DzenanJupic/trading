@@ -10,7 +10,7 @@ impl Error {
     pub fn new(msg: String, kind: ErrorKind) -> Self {
         Self {
             msg,
-            kind
+            kind,
         }
     }
 
@@ -35,7 +35,16 @@ impl From<libloading::Error> for Error {
     fn from(error: libloading::Error) -> Self {
         Self {
             msg: format!("{:?}", error),
-            kind: ErrorKind::LibLoading
+            kind: ErrorKind::LibLoading,
+        }
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Self {
+            msg: err.to_string(),
+            kind: ErrorKind::IO,
         }
     }
 }
@@ -46,6 +55,7 @@ pub enum ErrorKind {
     CouldNotLogin,
     CouldNotBuy,
     CouldNotSell,
+    IO,
     LibLoading,
     MisMatchedVersion,
     NoNewPositions,

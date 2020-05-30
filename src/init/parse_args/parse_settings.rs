@@ -1,37 +1,39 @@
+use algorithm_utils::AlgorithmInterface;
 use clap::ArgMatches;
 
 use crate::init::{Action, settings};
-use crate::init::settings::{ApiConfig, BrokerApi, ConfigFile};
+use crate::init::settings::{ApiConfig, BrokerApi, ConfigFile, Settings};
 
-pub fn parse_settings(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+pub fn parse_settings(args: &ArgMatches, mut current_settings: Settings) -> Action {
     // lets the user load settings from a different file
     // for doing so the other file needs to be a completely valid settings file
     // we don't have to check if the path is valid. This is already done by a clap validator
-    if let Some(path) = args.value_of("load") {
-        *current_settings = settings::load_configuration(path)
-            .expect("Could not load configuration!");
-    }
+    // if let Some(path) = args.value_of("load") { // todo
+    //     *current_settings = settings::load_configuration(path)
+    //         .expect("Could not load configuration!");
+    // }
 
     let action = match args.subcommand() {
-        ("save", Some(save)) => parse_save(&save, current_settings),
-        ("parse-algorithms", Some(algorithms)) => parse_algorithms(&algorithms, current_settings),
-        ("apis", Some(apis)) => parse_apis(&apis, current_settings),
+        ("save", Some(save)) => parse_save(&save, &mut current_settings),
+        ("algorithms", Some(algorithms)) => parse_algorithms(&algorithms, &mut current_settings),
+        ("apis", Some(apis)) => parse_apis(&apis, &mut current_settings),
         _ => Action::None
     };
-
-    // override the current settings
-    // this won't change anything if the settings weren't changed
-    settings::write_configuration(&current_settings)
-        .expect("Could not update the configuration!");
 
     if args.is_present("show") {
         print!("{}", current_settings);
     }
 
+    // override the current settings
+    // this won't change anything if the settings weren't changed
+    ConfigFile::from(current_settings)
+        .to_config_file()
+        .expect("Could not update the configuration!");
+
     action
 }
 
-fn parse_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_save(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     if let Some(order) = args.value_of("order") {
         current_settings.save_config.order = on_off_to_bool(order);
     }
@@ -43,44 +45,39 @@ fn parse_save(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     Action::None
 }
 
-fn parse_algorithms(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_algorithms(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     let mut action = Action::None;
 
     // lets the user change the currently used default algorithm
     if let Some(algorithm_name) = args.value_of("change") {
-        // check if there are parse-algorithms defines yet
-        // these parse-algorithms must live in the settings::ALGORITHM_DIR
-        match &mut current_settings.algorithm_config {
-            Some(algorithm_config) => {
-                // check if the algorithm is defined
-                let mut updated = false;
-                for algorithm in algorithm_config.algorithms.iter() {
-                    if algorithm.name == algorithm_name {
-                        algorithm_config.current_algorithm = algorithm.clone();
-                        updated = true;
-                    }
-                }
+        if let Err(_) = current_settings.set_current_algorithm(algorithm_name.to_string()) {
+            action = Action::Panic(format!("Could not find the algorithm {}", algorithm_name));
+        }
+    }
 
-                if !updated {
-                    action = Action::Panic(format!("Could not find the algorithm {}!", algorithm_name));
+    if let Some(algorithm_name) = args.value_of("about") {
+        match current_settings.algorithms() {
+            Some(ref algorithms) => {
+                match algorithms.get(algorithm_name) {
+                    Some(ref algorithm) => println!("{}", algorithm.about()),
+                    None => action = Action::Panic(format!("Could not find the algorithm {}", algorithm_name))
                 }
             }
-            None => action = Action::Panic("No parse-algorithms defined yet!".to_string())
+            None => action = Action::Panic("No algorithms defined yet".to_string())
         }
     }
 
     if args.is_present("list") {
-        let algorithm_config = match current_settings.algorithm_config {
-            Some(ref config) => config.to_string(),
-            None => String::from("None")
-        };
-        println!("\nALGORITHMS: {}", algorithm_config);
+        match current_settings.algorithms() {
+            Some(ref algorithms) => println!("{}", algorithms),
+            None => println!("ALGORITHMS: None")
+        }
     }
 
     action
 }
 
-fn parse_apis(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_apis(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     let mut action = match args.subcommand() {
         ("add", Some(add)) => parse_apis_add(add, current_settings),
         ("remove", Some(remove)) => parse_apis_remove(remove, current_settings),
@@ -92,8 +89,8 @@ fn parse_apis(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
         if let Some(ref mut apis) = current_settings.api_config {
             let mut updated = false;
             for api in apis.apis.iter() {
-                if api.id == api_id {
-                    apis.current_api = api.id.clone();
+                if api.id() == api_id {
+                    apis.current_api = api.id().clone();
                     updated = true;
                 }
             }
@@ -116,7 +113,7 @@ fn parse_apis(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
     action
 }
 
-fn parse_apis_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_apis_add(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     let id = match args.value_of("id") {
         Some(id) => {
             if BrokerApi::id_exists(&current_settings, &id) {
@@ -156,7 +153,7 @@ fn parse_apis_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Actio
         Some(api_config) => api_config.apis.push(broker_api),
         None => {
             current_settings.api_config = Some(ApiConfig {
-                current_api: broker_api.id.clone(),
+                current_api: broker_api.id().clone(),
                 apis: vec![broker_api],
             });
         }
@@ -165,7 +162,7 @@ fn parse_apis_add(args: &ArgMatches, current_settings: &mut ConfigFile) -> Actio
     Action::None
 }
 
-fn parse_apis_remove(args: &ArgMatches, current_settings: &mut ConfigFile) -> Action {
+fn parse_apis_remove(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     let id = args.value_of("id").unwrap();
     let mut none = false;
 
@@ -173,7 +170,7 @@ fn parse_apis_remove(args: &ArgMatches, current_settings: &mut ConfigFile) -> Ac
         let mut index = None;
 
         for (i, api) in api_config.apis.iter().enumerate() {
-            if api.id == id {
+            if api.id() == id {
                 index = Some(i);
             }
         }
@@ -187,12 +184,12 @@ fn parse_apis_remove(args: &ArgMatches, current_settings: &mut ConfigFile) -> Ac
                                                    .iter()
                                                    .last()
                                                    .unwrap()
-                                                   .id.clone();
+                                                   .id().clone();
             }
         } else {
-            return Action::Panic(format!("could not find {}", id))
+            return Action::Panic(format!("could not find {}", id));
         }
-    } else { return Action::Panic("no saved apis to remove".to_string()) }
+    } else { return Action::Panic("no saved apis to remove".to_string()); }
 
     if none {
         current_settings.api_config = None;

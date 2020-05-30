@@ -5,5 +5,5 @@ pub struct AlgorithmRegistration {
     pub rustc_version: &'static str,
     pub utils_version: &'static str,
     pub name: &'static str,
-    pub default: unsafe extern fn() -> Box<dyn AlgorithmInterface>
+    pub initial_algorithm_state_fn: unsafe extern fn() -> Box<dyn AlgorithmInterface>
 }

@@ -11,7 +11,7 @@ pub fn init() -> Action {
     if parse_args.is_exit() || parse_args.is_none() {
         std::process::exit(0);
     } else if let Action::Panic(msg) = parse_args {
-        eprintln!("{}", msg);
+        eprintln!("\n{}", msg);
         std::process::exit(1);
     }
 
@@ -23,7 +23,7 @@ pub struct Start {
     isins: Vec<Derivative>,
     interval: Duration,
     api: settings::ApiConfig,
-    algorithms: Vec<fn(Derivative, Duration) -> Result<(), ()>>,
+    algorithm: String,
 }
 
 #[allow(unused)] // todo

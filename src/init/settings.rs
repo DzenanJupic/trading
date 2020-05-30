@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use algorithm_utils::load::Algorithms;
 use serde::Deserialize;
 use serde::export::Formatter;
 use serde::Serialize;
@@ -12,39 +13,174 @@ pub const CONFIG_FILE: &str = "./conf.conf";
 pub const OLD_CONFIG: &str = "./old_conf.conf";
 
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct ConfigFile {
+#[derive(Default)]
+pub struct Settings {
     pub api_config: Option<ApiConfig>,
-    pub algorithm_config: Option<AlgorithmConfig>,
     pub save_config: SaveConfig,
+    current_algorithm: Option<String>,
+    algorithms: Option<Algorithms>,
 }
 
-impl ConfigFile {
-    pub fn default() -> Self {
+impl Settings {
+    #[allow(unused)]
+    pub fn current_algorithm(&self) -> &Option<String> { &self.current_algorithm }
+    #[allow(unused)]
+    pub fn algorithms(&self) -> &Option<Algorithms> { &self.algorithms }
+
+    pub fn set_current_algorithm(&mut self, name: String) -> Result<(), ()> {
+        match self.algorithms {
+            Some(ref algorithms) => {
+                if algorithms.contains(&name) {
+                    self.current_algorithm = Some(name);
+                    Ok(())
+                } else { Err(()) }
+            }
+            None => Err(())
+        }
+    }
+
+    pub fn set_algorithms(&mut self, algorithms: Algorithms) {
+        if let Some(ref name) = self.current_algorithm {
+            if !algorithms.contains(name) {
+                self.current_algorithm = None;
+            }
+        }
+
+        self.algorithms = Some(algorithms);
+    }
+}
+
+impl From<ConfigFile> for Settings {
+    fn from(config_file: ConfigFile) -> Self {
         Self {
-            api_config: None,
-            algorithm_config: None,
-            save_config: SaveConfig::default(),
+            api_config: config_file.api_config,
+            current_algorithm: config_file.current_algorithm,
+            save_config: config_file.save_config,
+            algorithms: None,
         }
     }
 }
 
-impl fmt::Display for ConfigFile {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+impl fmt::Display for Settings {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let api_config = match self.api_config {
             Some(ref config) => config.to_string(),
             None => String::from("APIS: None")
         };
-        let algorithm_config = match self.algorithm_config {
-            Some(ref config) => config.to_string(),
+        let current_algorithm = match self.current_algorithm {
+            Some(ref name) => format!("CURRENT ALGORITHM: {}", name),
+            None => String::from("CURRENT ALGORITHM: None")
+        };
+        let algorithms = match self.algorithms {
+            Some(ref algorithms) => algorithms.to_string(),
             None => String::from("ALGORITHMS: None")
         };
 
         write!(
             formatter,
-            "\n{}\n\n{}\n\n{}\n",
-            api_config, algorithm_config, self.save_config
+            "\n\
+            {}\n\n\
+            {}\n\n\
+            {}\n\n\
+            {}\n",
+            api_config,
+            current_algorithm,
+            algorithms,
+            self.save_config
         )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct ConfigFile {
+    pub current_algorithm: Option<String>,
+    pub api_config: Option<ApiConfig>,
+    pub save_config: SaveConfig,
+}
+
+impl ConfigFile {
+    #[inline]
+    fn from_toml(toml: &str) -> Result<Self, toml::de::Error> {
+        toml::from_str(toml)
+    }
+
+    #[inline]
+    fn to_toml(&self) -> Result<String, toml::ser::Error> {
+        toml::to_string(self)
+    }
+
+    #[inline]
+    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
+        let data = fs::read_to_string(path)?;
+        match Self::from_toml(&data) {
+            Ok(config_file) => Ok(config_file),
+            Err(err) => Err(io::Error::new(io::ErrorKind::InvalidData, err))
+        }
+    }
+
+    #[inline]
+    pub fn from_config_file() -> Result<Self, io::Error> {
+        match Self::from_file(CONFIG_FILE) {
+            Ok(config) => Ok(config),
+            Err(err) => {
+                use io::ErrorKind;
+                eprintln!("Could not read configuration file! ({})", CONFIG_FILE);
+
+                match err.kind() {
+                    ErrorKind::NotFound => Self::new_config_file(false),
+                    ErrorKind::InvalidData => Self::new_config_file(true),
+                    ErrorKind::AddrInUse => panic!("Configuration file is in use by other program!"),
+                    _ => panic!("Unexpected error while reading the configuration file!")
+                }
+            }
+        }
+    }
+
+    #[inline]
+    pub fn to_config_file(&self) -> Result<(), io::Error> {
+        let toml = match self.to_toml() {
+            Ok(toml) => toml,
+            Err(err) => return Err(io::Error::new(io::ErrorKind::Other, err))
+        };
+        fs::write(CONFIG_FILE, toml)
+    }
+
+    #[inline]
+    fn new_config_file(save_old: bool) -> Result<Self, io::Error> {
+        if save_old {
+            let old_data = fs::read_to_string(CONFIG_FILE)?;
+            fs::write(OLD_CONFIG, old_data)?;
+            println!("Saved old configuration in {}\n\
+                      to use parts of the old configuration use the load command",
+                     OLD_CONFIG
+            );
+        }
+
+        let new_config = ConfigFile::default();
+        new_config.to_config_file()?;
+        println!("Created new configuration file");
+
+        Ok(new_config)
+    }
+}
+
+impl Default for ConfigFile {
+    fn default() -> Self {
+        Self {
+            api_config: None,
+            current_algorithm: None,
+            save_config: SaveConfig::default(),
+        }
+    }
+}
+
+impl From<Settings> for ConfigFile {
+    fn from(settings: Settings) -> Self {
+        Self {
+            api_config: settings.api_config,
+            current_algorithm: settings.current_algorithm,
+            save_config: settings.save_config,
+        }
     }
 }
 
@@ -60,14 +196,17 @@ impl fmt::Display for ApiConfig {
                       .iter()
                       .fold(
                           String::new(),
-                          |prev, cur| format!("{} {};", prev, cur),
+                          |mut prev, cur| {
+                              prev.push_str("\n\t");
+                              prev.push_str(&cur.to_string());
+                              prev
+                          },
                       );
 
         write!(
             formatter,
-            "APIS:\n\
-            \tcurrent: {}\n\
-            \tall: {}",
+            "CURRENT API: {}\n\n\
+            APIS: {}",
             self.current_api, all
         )
     }
@@ -75,15 +214,28 @@ impl fmt::Display for ApiConfig {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct BrokerApi {
-    pub id: String,
-    pub broker: String,
-    pub key: Option<String>,
-    pub secret: Option<String>,
-    pub username: Option<String>,
-    pub password: Option<String>,
+    id: String,
+    broker: String,
+    key: Option<String>,
+    secret: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
 }
 
 impl BrokerApi {
+    #[allow(unused)]
+    pub fn id(&self) -> &String { &self.id }
+    #[allow(unused)]
+    pub fn broker(&self) -> &String { &self.broker }
+    #[allow(unused)]
+    pub fn key(&self) -> &Option<String> { &self.key }
+    #[allow(unused)]
+    pub fn secret(&self) -> &Option<String> { &self.secret }
+    #[allow(unused)]
+    pub fn username(&self) -> &Option<String> { &self.username }
+    #[allow(unused)]
+    pub fn password(&self) -> &Option<String> { &self.password }
+
     pub fn builder(broker: String) -> BrokerApiBuilder {
         BrokerApiBuilder {
             id: None,
@@ -94,7 +246,7 @@ impl BrokerApi {
             password: None,
         }
     }
-    pub fn id_exists(current_settings: &ConfigFile, id: &str) -> bool {
+    pub fn id_exists(current_settings: &Settings, id: &str) -> bool {
         if let Some(ref api_config) = current_settings.api_config {
             for api in api_config.apis.iter() {
                 if api.id == id {
@@ -147,7 +299,7 @@ impl BrokerApiBuilder {
         self.password = password;
         self
     }
-    pub fn build(self, current_settings: &mut ConfigFile) -> BrokerApi {
+    pub fn build(self, current_settings: &mut Settings) -> BrokerApi {
         let id = match self.id {
             Some(id) => {
                 if BrokerApi::id_exists(&current_settings, &id) {
@@ -182,47 +334,6 @@ impl BrokerApiBuilder {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct AlgorithmConfig {
-    pub current_algorithm: Algorithm,
-    pub algorithms: Vec<Algorithm>,
-}
-
-impl fmt::Display for AlgorithmConfig {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let all = self.algorithms
-                      .iter()
-                      .fold(
-                          String::new(),
-                          |prev, cur| format!("{} {};", prev, cur),
-                      );
-
-        write!(
-            formatter,
-            "ALGORITHMS:\n\
-            \tcurrent: {}\n\
-            \tall: {}",
-            self.current_algorithm, all
-        )
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct Algorithm {
-    pub name: String,
-    pub file: String,
-}
-
-impl fmt::Display for Algorithm {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(
-            formatter,
-            "{}",
-            self.name
-        )
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct SaveConfig {
     pub order: bool,
     pub price: bool,
@@ -250,71 +361,4 @@ impl fmt::Display for SaveConfig {
             order, price
         )
     }
-}
-
-
-#[inline]
-fn toml_to_config(string: &String) -> Result<ConfigFile, toml::de::Error> {
-    toml::from_str::<ConfigFile>(&string)
-}
-
-#[inline]
-fn config_to_toml(config: &ConfigFile) -> Result<String, toml::ser::Error> {
-    toml::to_string(config)
-}
-
-#[inline]
-fn file_to_config<P: AsRef<Path>>(path: P) -> Result<ConfigFile, io::Error> {
-    let data = fs::read_to_string(path)?;
-    match toml_to_config(&data) {
-        Ok(config) => Ok(config),
-        Err(err) => Err(io::Error::new(io::ErrorKind::InvalidData, err))
-    }
-}
-
-pub fn read_configuration() -> Result<ConfigFile, io::Error> {
-    match file_to_config(CONFIG_FILE) {
-        Ok(config) => Ok(config),
-        Err(err) => {
-            use io::ErrorKind;
-            eprintln!("Could not read configuration file! ({})", CONFIG_FILE);
-
-            match err.kind() {
-                ErrorKind::NotFound => new_config_file(false),
-                ErrorKind::InvalidData => new_config_file(true),
-                ErrorKind::AddrInUse => panic!("Configuration file is in use by other program!"),
-                _ => panic!("Unexpected error while reading the configuration file!")
-            }
-        }
-    }
-}
-
-pub fn new_config_file(save_old: bool) -> Result<ConfigFile, io::Error> {
-    if save_old {
-        let old_data = fs::read_to_string(CONFIG_FILE)?;
-        fs::write(OLD_CONFIG, old_data)?;
-        println!("Saved old configuration in {}\n\
-        to use parts of the old configuration use the load command", OLD_CONFIG);
-    }
-
-    let new_config = ConfigFile::default();
-    write_configuration(&new_config)?;
-    println!("Created new configuration file");
-
-    Ok(new_config)
-}
-
-#[inline]
-pub fn write_configuration(config: &ConfigFile) -> Result<(), io::Error> {
-    let toml = match config_to_toml(&config) {
-        Ok(toml) => toml,
-        Err(err) => return Err(io::Error::new(io::ErrorKind::Other, err))
-    };
-    fs::write(CONFIG_FILE, toml)
-}
-
-#[inline]
-pub fn load_configuration<P: AsRef<Path>>(from: P) -> Result<ConfigFile, io::Error> {
-    let loaded = file_to_config(from)?;
-    Ok(loaded)
 }
