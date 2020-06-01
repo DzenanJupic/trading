@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::derivative::Derivative;
+use algorithm_utils::Derivative;
 
 mod parse_args;
 mod settings;
@@ -8,14 +8,18 @@ mod settings;
 pub fn init() -> Action {
     let parse_args = parse_args::parse_args();
 
-    if parse_args.is_exit() || parse_args.is_none() {
-        std::process::exit(0);
-    } else if let Action::Panic(msg) = parse_args {
-        eprintln!("\n{}", msg);
-        std::process::exit(1);
+    match parse_args {
+        Action::Exit(msg) => {
+            println!("\n{}", msg);
+            std::process::exit(0);
+        }
+        Action::Panic(msg) => {
+            eprintln!("\n{}", msg);
+            std::process::exit(1);
+        }
+        Action::None => std::process::exit(0),
+        Action::Start(_) => return parse_args
     }
-
-    parse_args
 }
 
 #[allow(unused)] // todo
@@ -29,7 +33,7 @@ pub struct Start {
 #[allow(unused)] // todo
 pub enum Action {
     Start(Start),
-    Exit,
+    Exit(String),
     None,
     Panic(String),
 }
@@ -42,7 +46,7 @@ impl Action {
         } else { false }
     }
     pub fn is_exit(&self) -> bool {
-        if let Action::Exit = self {
+        if let Action::Exit(_) = self {
             true
         } else { false }
     }

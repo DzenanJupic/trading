@@ -18,35 +18,22 @@ pub struct Settings {
     pub api_config: Option<ApiConfig>,
     pub save_config: SaveConfig,
     current_algorithm: Option<String>,
-    algorithms: Option<Algorithms>,
+    algorithms: Algorithms,
 }
 
 impl Settings {
     #[allow(unused)]
     pub fn current_algorithm(&self) -> &Option<String> { &self.current_algorithm }
     #[allow(unused)]
-    pub fn algorithms(&self) -> &Option<Algorithms> { &self.algorithms }
+    pub fn algorithms(&self) -> &Algorithms { &self.algorithms }
+    #[allow(unused)]
+    pub fn algorithms_mut(&mut self) -> &mut Algorithms { &mut self.algorithms }
 
     pub fn set_current_algorithm(&mut self, name: String) -> Result<(), ()> {
-        match self.algorithms {
-            Some(ref algorithms) => {
-                if algorithms.contains(&name) {
-                    self.current_algorithm = Some(name);
-                    Ok(())
-                } else { Err(()) }
-            }
-            None => Err(())
-        }
-    }
-
-    pub fn set_algorithms(&mut self, algorithms: Algorithms) {
-        if let Some(ref name) = self.current_algorithm {
-            if !algorithms.contains(name) {
-                self.current_algorithm = None;
-            }
-        }
-
-        self.algorithms = Some(algorithms);
+        if self.algorithms.contains(&name) {
+            self.current_algorithm = Some(name);
+            Ok(())
+        } else { Err(()) }
     }
 }
 
@@ -56,7 +43,7 @@ impl From<ConfigFile> for Settings {
             api_config: config_file.api_config,
             current_algorithm: config_file.current_algorithm,
             save_config: config_file.save_config,
-            algorithms: None,
+            algorithms: Algorithms::empty(),
         }
     }
 }
@@ -71,10 +58,6 @@ impl fmt::Display for Settings {
             Some(ref name) => format!("CURRENT ALGORITHM: {}", name),
             None => String::from("CURRENT ALGORITHM: None")
         };
-        let algorithms = match self.algorithms {
-            Some(ref algorithms) => algorithms.to_string(),
-            None => String::from("ALGORITHMS: None")
-        };
 
         write!(
             formatter,
@@ -85,7 +68,7 @@ impl fmt::Display for Settings {
             {}\n",
             api_config,
             current_algorithm,
-            algorithms,
+            self.algorithms,
             self.save_config
         )
     }

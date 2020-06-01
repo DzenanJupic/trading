@@ -1,5 +1,5 @@
 [package]
-name = "trading"
+name = "trading-desk"
 version = "0.1.0"
 authors = ["Dzenan Jupic <info@dzenanjupic.de>"]
 edition = "2018"
@@ -14,4 +14,4 @@ log = "0.4.8"
 log4rs = "0.11.0"
 tokio = {version="0.2.18", features=["fs"]}
 
-algorithm-utils = {path="./algorithm-utils"}
+algorithm-utils = {path="../algorithm-utils"}

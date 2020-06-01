@@ -1,7 +1,6 @@
-use algorithm_utils::AlgorithmInterface;
 use clap::ArgMatches;
 
-use crate::init::{Action, settings};
+use crate::init::Action;
 use crate::init::settings::{ApiConfig, BrokerApi, ConfigFile, Settings};
 
 pub fn parse_settings(args: &ArgMatches, mut current_settings: Settings) -> Action {
@@ -48,6 +47,9 @@ fn parse_save(args: &ArgMatches, current_settings: &mut Settings) -> Action {
 fn parse_algorithms(args: &ArgMatches, current_settings: &mut Settings) -> Action {
     let mut action = Action::None;
 
+    // todo: `add` argument
+    // todo: `remove` argument
+
     // lets the user change the currently used default algorithm
     if let Some(algorithm_name) = args.value_of("change") {
         if let Err(_) = current_settings.set_current_algorithm(algorithm_name.to_string()) {
@@ -55,23 +57,15 @@ fn parse_algorithms(args: &ArgMatches, current_settings: &mut Settings) -> Actio
         }
     }
 
-    if let Some(algorithm_name) = args.value_of("about") {
-        match current_settings.algorithms() {
-            Some(ref algorithms) => {
-                match algorithms.get(algorithm_name) {
-                    Some(ref algorithm) => println!("{}", algorithm.about()),
-                    None => action = Action::Panic(format!("Could not find the algorithm {}", algorithm_name))
-                }
-            }
-            None => action = Action::Panic("No algorithms defined yet".to_string())
+    if let Some(algorithm_name) = args.value_of("description") {
+        match current_settings.algorithms().get(algorithm_name) {
+            Some(ref algorithm) => println!("{}", algorithm),
+            None => action = Action::Panic(format!("Could not find the algorithm {}", algorithm_name))
         }
     }
 
     if args.is_present("list") {
-        match current_settings.algorithms() {
-            Some(ref algorithms) => println!("{}", algorithms),
-            None => println!("ALGORITHMS: None")
-        }
+        println!("{}", current_settings.algorithms());
     }
 
     action

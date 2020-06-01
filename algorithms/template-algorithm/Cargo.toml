@@ -9,5 +9,5 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-algorithm-utils = {path="../../algorithm-utils"}
+algorithm-utils = {path="../../../algorithm-utils"}
 chrono = "0.4.11"

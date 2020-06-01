@@ -1,15 +1,11 @@
-#![allow(unused)]
-
 use std::path::Path;
 
-use algorithm_utils::{AlgorithmInterface, Error, load::Algorithms};
 use clap::{App, Arg, ArgMatches, crate_authors, crate_version, SubCommand};
 
 use parse_settings::parse_settings;
 use parse_start::parse_start;
 
 use crate::init::Action;
-use crate::init::settings;
 use crate::init::settings::{ConfigFile, Settings};
 
 mod parse_settings;
@@ -35,32 +31,25 @@ pub fn parse_args() -> Action {
         .expect("Could not read configuration!")
         .into();
 
-    let algorithms = match load_algorithms() {
-        Ok(algorithms) => algorithms,
-        Err(err) => return Action::Panic(err.msg().to_string()),
-    };
-
-    current_settings.set_algorithms(algorithms);
+    if let Err(err) = current_settings
+        .algorithms_mut()
+        .load_all(&ALGORITHM_DIR) {
+        return Action::Panic(err.msg().to_string());
+    }
 
     match matches.subcommand() {
         ("settings", Some(settings)) => parse_settings(settings, current_settings),
         ("start", Some(start)) => parse_start(start, current_settings),
-        _ => Action::Exit
+        _ => Action::None
     }
-}
-
-pub fn load_algorithms() -> Result<Algorithms, Error> {
-    let mut algorithms = Algorithms::empty();
-    algorithms.load_all(ALGORITHM_DIR)?;
-    Ok(algorithms)
 }
 
 fn clap_parser<'a>() -> ArgMatches<'a> {
     App::new("Trading")
         .version(crate_version!())
         .author(crate_authors!())
-        .about("A CLI for algorithmic trading\
-        \nYou can either use existing parse-algorithms or develop some your own! \
+        .about("A CLI for algorithmic trading-desk\
+        \nYou can either use existing algorithms or develop some your own! \
         \nIf your brokers api currently is not supported, please open a issue on GitHub with \
         a link to your brokers API documentation. It would awesome if you could create the rust api \
         for you brokers api your self! Each contribution makes this CLI a great amount better.")
@@ -83,7 +72,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 })
             )
             .subcommand(SubCommand::with_name("save")
-                .about("A CLI for manually changing the save behavior while trading")
+                .about("changes the save behaviour while trading")
                 .arg(Arg::with_name("order")
                     .help("Defines the saving behavior when a order is made")
                     .short("o")
@@ -102,23 +91,28 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 )
             )
             .subcommand(SubCommand::with_name("algorithms")
-                .about("A CLI for manually changing the algorithm")
-                .arg(Arg::with_name("list")
-                    .help("shows the available parse-algorithms")
-                    .short("l")
-                    .long("list")
-                )
+                .about("allows some algorithm relates settings")
                 .arg(Arg::with_name("change")
-                    .help("changes the current used algorithm")
+                    .help(
+                        "changes the current used algorithm by name\n\
+                        to see all algorithms have a look at `settings algorithms --list`"
+                    )
+                    .value_name("algorithm-name")
                     .short("c")
                     .long("change")
                     .takes_value(true)
                 )
-                .arg(Arg::with_name("about")
-                    .help("Gives access to the algorithm descriptions")
-                    .short("a")
-                    .long("about")
+                .arg(Arg::with_name("description")
+                    .help("Gives access to the algorithm descriptions by name")
+                    .value_name("algorithm-name")
+                    .short("d")
+                    .long("description")
                     .takes_value(true)
+                )
+                .arg(Arg::with_name("list")
+                    .help("shows the available algorithms")
+                    .short("l")
+                    .long("list")
                 )
             )
             .subcommand(SubCommand::with_name("apis") // TODO: load to load from different folders
@@ -190,8 +184,8 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
             )
         )
         .subcommand(SubCommand::with_name("start")
-            .about("Starts the trading algorithm")
-            .arg(Arg::with_name("trading type")
+            .about("Starts the trading-desk algorithm")
+            .arg(Arg::with_name("trading-desk type")
                 .help("determine weather you want to trade live (with real money!), paper (without money) or back (back tests you algorithm)")
                 .takes_value(true)
                 .possible_values(&TRADING_TYPES)
@@ -217,7 +211,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
             .arg(Arg::with_name("output")
                 .help("Specifies the amount of date that should be displayed [default: trades]\
                 \nThis argument let's you decide what amount of information should be displayed \
-                while trading. Outputting  data will lead to a performance overhead. Still it's \
+                while trading-desk. Outputting  data will lead to a performance overhead. Still it's \
                 recommended to output the trades, since this gives you the ability to check if \
                 the algorithm goes crazy. full and none can't be specified together! \
                 If full or none is set it overrides all other values. \
@@ -235,7 +229,7 @@ fn clap_parser<'a>() -> ArgMatches<'a> {
                 \nThis argument let's you decide how much data should be saved. \
                 Please notice that this could have a little performance overhead. Still it's \
                 absolutely recommended to save the data. Data saves will be asyncness and can \
-                save your butt if one of the parse-algorithms goes crazy. \
+                save your butt if one of the algorithms goes crazy. \
                 Usually it also shouldn't be necessary to save the charts, since you can pull \
                 them from the internet later.")
                 .long("save")
