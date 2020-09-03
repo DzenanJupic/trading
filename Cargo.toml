@@ -12,6 +12,6 @@ serde = { version = "1.0", features = ["derive"] }
 toml = "0.5.6"
 log = "0.4.8"
 log4rs = "0.11.0"
-tokio = {version="0.2.18", features=["fs"]}
+rust-crypto = "0.2.36"
 
-algorithm-utils = {path="../algorithm-utils"}
+trading-utils = {path="../trading-utils"}

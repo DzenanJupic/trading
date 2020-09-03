@@ -3,7 +3,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
-use algorithm_utils::load::Algorithms;
+use trading_utils::load::Algorithms;
 use serde::Deserialize;
 use serde::export::Formatter;
 use serde::Serialize;

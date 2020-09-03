@@ -83,10 +83,11 @@
 //! your readability to deliver safe algorithms.
 
 
-use algorithm_utils as utils;
-use algorithm_utils::{Derivative, Instruction, Position, Price, TradingErrorKind};
+use trading_utils::{
+    Derivative, Instruction, Position, Price,
+    TradingErrorKind, AlgorithmInterface, Error, export_algorithm
+};
 use chrono::Duration;
-use utils::{AlgorithmInterface, Error, export_algorithm};
 
 export_algorithm!(
     "Template Algorithm",               // name

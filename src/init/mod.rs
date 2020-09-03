@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use algorithm_utils::Derivative;
+use trading_utils::Derivative;
 
 mod parse_args;
 mod settings;
